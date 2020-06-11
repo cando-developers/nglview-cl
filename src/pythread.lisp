@@ -57,7 +57,7 @@
          (fire-callback callback)
          (when (member (method-name callback) registered-funcs :test #'string=)
            (jupyter:inform :info nil "method-name is one of ~s - waiting until callback is finished" registered-funcs)
-           (nglv:%wait-until-finished (widget callback)))
+           (nglview:%wait-until-finished (widget callback)))
          (jupyter:inform :info nil "Callback finished"))
         (t
          (format t "Handle remote-call-thread-run callback: ~a~%" callback)

@@ -711,10 +711,10 @@
         Examples
         --------
         (asdf:load-system :nglview)
-        (defparameter *v* (make-instance 'nglv::nglwidget))
+        (defparameter *v* (make-instance 'nglview:nglwidget))
         (defparameter *sphere* (vector \"sphere\" #(0 0 9) #(1 0 0) 1.5))
         (defparameter *arrow* (vector \"arrow\" #(1 2 7) #(30 3 3) #(1 0 1) 1.0))
-        (nglv::add-shape *v* (vector *sphere* *arrow*) :name \"my_shape\")
+        (nglview:add-shape *v* (vector *sphere* *arrow*) :name \"my_shape\")
         "
   (%remote-call self "addShape"
                 :target "Widget"
