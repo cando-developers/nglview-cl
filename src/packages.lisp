@@ -13,10 +13,10 @@
 
 (defpackage #:nglview
   (:use #:cl)
-  (:nicknames nglv)
+  (:nicknames #:nglv)
   (:local-nicknames (:j :jupyter)
                     (:jw :jupyter-widgets))
-  (:shadow #:count #:structure)
+  (:shadow #:structure)
   (:export
     #:add-component
     #:add-representation
