@@ -183,8 +183,8 @@ def get_colors_from_b64(b64_image):
 (defun get-repr-names-from-dict (repr-dict component)
   (handler-case
       (mapcar (lambda (pair)
-                (j:json-getf (cdr pair) "type"))
-              (j:json-getf repr-dict (write-string component)))
+                (jupyter:json-getf (cdr pair) "type"))
+              (jupyter:json-getf repr-dict (write-string component)))
     (error () nil)))
 
 ; p:FileManager

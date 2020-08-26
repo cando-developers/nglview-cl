@@ -1,15 +1,22 @@
 (in-package :nglview)
 
+
+(defgeneric id (instance)
+  (:documentation "Return the unique id of the instance")
+  (:method ((value string))
+    value))
+
+
 (defclass component ()
   ((id
      :accessor id
-     :initform (jupyter:make-uuid))
+     :initform (jupyter:make-uuid)
+     :documentation "The unique id of the component.")
    (name
      :accessor name
-     :initform "")))
-
-(defmethod id ((value string))
-  value)
+     :initform ""
+     :documentation "The name of the component."))
+  (:documentation "Base component of structures and trajectories."))
 
 
 ; p:Structure
@@ -17,11 +24,14 @@
   ((ext
      :accessor ext
      :initarg :ext
-     :initform "pdb")
+     :initform "pdb"
+     :documentation "File extension of structure.")
    (params
      :accessor params
      :initform nil
-     :type list)))
+     :type list
+     :documentation "Extra parameters associated with the structure."))
+  (:documentation "Base class for structures."))
 
 ; p:get_structure_string
 (defgeneric get-structure-string (instance)
@@ -33,7 +43,9 @@
   ((shown
      :accessor shown
      :initform t
-     :type bool)))
+     :type bool
+     :documentation "Boolean indicated whether the trajectory is currently visible."))
+  (:documentation "Base class for trajectories."))
 
 ; p:get_coordinates
 (defgeneric get-coordinates (instance index)

@@ -1,18 +1,21 @@
 (in-package :nglview)
 
-;;;Register backend is something python does but we don't need
+;;; Register backend is something python does but we don't need to
 
 ; p:FileStructure
 (defclass file-structure (structure)
   ((path
      :accessor path
      :initarg :path
-     :initform nil)
+     :initform nil
+     :documentation "Path of the file structure.")
    (fm
      :accessor fm
-     :initform nil))
+     :initform nil
+     :documentation "File Manager associated with the structure."))
   (:default-initargs
-    :ext nil))
+    :ext nil)
+  (:documentation "A local file based structure."))
 
 (defmethod initialize-instance :after ((instance file-structure) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
@@ -32,7 +35,9 @@
   ((text
      :accessor text
      :initarg :text
-     :initform "")))
+     :initform ""
+     :documentation "The text representation of the structure."))
+  (:documentation "A in-memory text based structure."))
 
 ; p:get_structure_string
 (defmethod get-structure-string ((self text-structure))
@@ -44,13 +49,16 @@
   ((pdbid
      :accessor pdbid
      :initarg :pdbid
-     :initform nil)
+     :initform nil
+     :documentation "The PDB-ID of the structure.")
    (url
      :accessor url
      :initarg :url
-     :initform "http://files.rcsb.org/view/~A.~A"))
+     :initform "http://files.rcsb.org/view/~A.~A"
+     :documentation "Base URL from which to retrieve the PDB structure."))
   (:default-initargs
-    :ext "pdb"))
+    :ext "pdb")
+  (:documentation "A structure referenced by PDB-ID."))
 
 (defmethod initialize-instance :after ((instance pdb-id-structure) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
@@ -89,7 +97,9 @@
 (defclass pdb-id-trajectory (pdb-id-structure trajectory)
   ((frames
      :accessor frames
-     :initform nil)))
+     :initform nil
+     :documentation "The raw and computed frames of the PDB trajectory."))
+  (:documentation "A trajectory based a PDB file."))
 
 (defmethod initialize-instance :after ((instance pdb-id-trajectory) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))

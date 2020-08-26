@@ -33,11 +33,11 @@
                              "main.css")))))
 
 ; p:_on_theme_changed
-(defmethod jw:on-trait-change ((instance theme-manager) (name (eql :%theme-css)) type old-value new-value source)
+(defmethod jupyter-widgets:on-trait-change ((instance theme-manager) (name (eql :%theme-css)) type old-value new-value source)
   (declare (ignore name type old-value source))
   (%call instance "handleThemeChanged"))
 
-(defmethod jw:on-trait-change ((instance theme-manager) (name (eql :%theme)) type old-value new-value source)
+(defmethod jupyter-widgets:on-trait-change ((instance theme-manager) (name (eql :%theme)) type old-value new-value source)
   (declare (ignore name type old-value source))
   (setf (%theme-css instance)
         (apply #'concatenate 'string

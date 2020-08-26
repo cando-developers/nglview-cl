@@ -1,7 +1,5 @@
 (in-package :nglview)
 
-(jupyter:inform :info nil "Loading widget.lisp")
-
 (defparameter *excluded-callback-after-firing*
   (list "setUnSyncCamera" "setSelector" "setUnSyncFrame"
         "setDelay" "autoView" "_downloadImage" "_exportImage"
@@ -18,63 +16,77 @@
   ((%ngl-version ; p:_ngl_version
      :accessor ngl-version
      :initform ""
-     :trait :unicode)
+     :trait :unicode
+     :documentation "NGL version in the frontend.")
    (%image-data ; p:_image_data
      :accessor %image-data
      :initform ""
-     :trait :unicode)
+     :trait :unicode
+     :documentation "The current image data")
    (frame ; p:frame
      :accessor frame
      :initform 0
-     :trait :float)
+     :trait :float
+     :documentation "The current frame number")
    (max-frame ; p:max_frame
      :accessor max-frame
      :initform 0
      :type Integer
-     :trait :int)
+     :trait :int
+     :documentation "The total number of frames in the animation")
    (%step ; The isn't the python code b.c. they still have the remains of the old player.
      :accessor %step
      :initform 1
-     :trait :float)
+     :trait :float
+     :documentation "Frame step amount. To use interpolation use a value smaller than one.")
    (background ; p:background
      :accessor background
      :initform "white"
-     :trait :color)
+     :trait :color
+     :documentation "Background color of the widget.")
    (loaded ; p:loaded
      :accessor loaded
      :initform nil
-     :type boolean)
+     :type boolean
+     :documentation "Whether loading the widget has been completed")
    (picked ; p:picked
      :accessor picked
      :initform nil
-     :trait :json)
+     :trait :json
+     :documentation "Current picked atom.")
    (%pick-history
      :accessor pick-history
      :initform nil
-     :type list)
-   (n-components ; p:n_componend
+     :type list
+     :documentation "History of picked atoms.")
+   (n-components ; p:n_components
      :accessor n-components
      :initform 0
      :type integer
-     :trait :int)
+     :trait :int
+     :documentation "The number of components currently displayed.")
    (%view-width ; p:_view_width
      :accessor %view-width
      :initarg :width
      :initform ""
-     :trait :unicode)
+     :trait :unicode
+     :documentation "The width of the current view.")
    (%view-height ; p:_view_height
      :accessor %view-height
      :initarg :height
      :initform ""
-     :trait :unicode)
+     :trait :unicode
+     :documentation "The height of the current view.")
    (%scene-position ; p:_scene_position
      :accessor scene-position
      :trait :dict
-     :initform nil)
+     :initform nil
+     :documentation "The position of the current scene.")
    (%scene-rotation ; p:_scene_rotation
      :accessor scene-rotation
      :initform nil
-     :trait :dict)
+     :trait :dict
+     :documentation "The rotation fo the current scene.")
    (parameters ; p:_parameters
      :accessor parameters
      :initform nil)
@@ -92,7 +104,8 @@
    (%camera-str ; p:_camera_str
      :accessor camera-str
      :initform "orthographic" ; probably need validate for following values "perspective" "orthographic"
-     :trait :unicode)
+     :trait :unicode
+     :documentation "The type of camera view.")
    (%camera-orientation ; p:_camera_orientation
      :accessor camera-orientation
      :initform nil
@@ -282,56 +295,57 @@
 
   (unless (%widget-theme instance)
     (setf (%widget-theme instance) (make-instance 'theme-manager))
-    (jw:display (%widget-theme instance)))
+    (jupyter-widgets:display (%widget-theme instance)))
 
   (setf (%gui-theme instance) (%theme (%widget-theme instance)))
-  (jw:link instance :%gui-theme (%widget-theme instance) :%theme))
+  (jupyter-widgets:link instance :%gui-theme (%widget-theme instance) :%theme))
 
 
 (defun make-nglwidget (&rest initargs &key &allow-other-keys)
+  "Create a nglwidget."
   (apply #'make-instance 'nglwidget initargs))
 
 ; p:_create_ibtn_fullscreen
 (defun %create-ibtn-fullscreen (instance)
   (setf (%ibtn-fullscreen instance)
-        (make-instance 'jw:button :icon "compress"
-                       :layout (make-instance 'jw:layout :width "34px"))))
+        (make-instance 'jupyter-widgets:button :icon "compress"
+                       :layout (make-instance 'jupyter-widgets:layout :width "34px"))))
 
 ; p:_sync_with_layout
 (defun %sync-with-layout (instance)
-  (jw:observe (jw:widget-layout instance) :width
+  (jupyter-widgets:observe (jupyter-widgets:widget-layout instance) :width
     (lambda (layout-instance name type old-value new-value source)
       (declare (ignore layout-instance name type old-value source))
       (%set-size instance new-value "")))
-  (jw:observe (jw:widget-layout instance) :height
+  (jupyter-widgets:observe (jupyter-widgets:widget-layout instance) :height
     (lambda (layout-instance name type old-value new-value source)
       (declare (ignore layout-instance name type old-value source))
       (%set-size instance "" new-value))))
 
 ; p:_create_player
 (defun %create-player (instance)
-  (let ((player (make-instance 'jw:play :max (max-frame instance)))
-        (slider (make-instance 'jw:int-slider :max (max-frame instance) :continuous-update t)))
+  (let ((player (make-instance 'jupyter-widgets:play :max (max-frame instance)))
+        (slider (make-instance 'jupyter-widgets:int-slider :max (max-frame instance) :continuous-update t)))
     (setf (%iplayer instance)
-          (make-instance 'jw:h-box :children (list player slider)))
-    (jw:link player :value slider :value)
-    (jw:observe player :value
+          (make-instance 'jupyter-widgets:h-box :children (list player slider)))
+    (jupyter-widgets:link player :value slider :value)
+    (jupyter-widgets:observe player :value
       (lambda (player name type old-value new-value source)
         (declare (ignore player name type old-value source))
         (setf (frame instance) new-value)))
-    ;(jw:link player :value slider :value)
-    (jw:observe instance :max-frame
+    ;(jupyter-widgets:link player :value slider :value)
+    (jupyter-widgets:observe instance :max-frame
       (lambda (instance name type old-value new-value source)
         (declare (ignore instance name type old-value source))
-        (setf (jw:widget-max player) new-value)
-        (setf (jw:widget-max slider) new-value)))
-    (jw:observe instance :%step
+        (setf (jupyter-widgets:widget-max player) new-value)
+        (setf (jupyter-widgets:widget-max slider) new-value)))
+    (jupyter-widgets:observe instance :%step
       (lambda (instance name type old-value new-value source)
         (declare (ignore instance name type old-value source))
-        (setf (jw:widget-step player) new-value)
-        (setf (jw:widget-step slider) new-value)))))
-    ;(jw:directional-link instance :max-frame player :max)))
-    ;(jw:link slider :max instance :max-frame)))
+        (setf (jupyter-widgets:widget-step player) new-value)
+        (setf (jupyter-widgets:widget-step slider) new-value)))))
+    ;(jupyter-widgets:directional-link instance :max-frame player :max)))
+    ;(jupyter-widgets:link slider :max instance :max-frame)))
 
 ; p:_trajlist
 (defun %trajlist (instance)
@@ -412,7 +426,7 @@
 (defmethod jupyter-widgets:on-trait-change ((self nglwidget) type (name (eql :picked)) old new source)
   (declare (ignore type name old source))
   (when (and new
-             (j:json-keyp new "atom")
+             (jupyter:json-keyp new "atom")
              (slot-boundp self '%pick-history))
     (push new (pick-history self))
     (setf (pick-history self)
@@ -426,6 +440,10 @@
   (let ((pos (position item seq)))
     (when pos
       (subseq seq (1+ pos)))))
+
+; p:handle_resize
+(defun handle-resize (instance)
+  (%remote-call instance "handleResize"))
 
 ; p:_update_max_frame
 (defun %update-max-frame (instance)
@@ -597,7 +615,7 @@
   (let ((kwargs ""))
     (loop for params in representations
        do
-         (if t ; FIXME: (typep params 'cljw:dict)
+         (if t ; FIXME: (typep params 'cljupyter-widgets:dict)
              (progn
                (setf kwargs (aref params "params"))
                (warn "What to do about update kwargs")
@@ -669,11 +687,11 @@
           for byte-buffer = arr
           do (push byte-buffer buffers)
           do (push (cons (princ-to-string index) index) coordinates-meta))
-    (let ((content (j:json-new-obj ("type" "binary_single")
+    (let ((content (jupyter:json-new-obj ("type" "binary_single")
                                    ("data" (cons :obj coordinates-meta)))))
       (when movie-making
-        (setf (j:json-getf content "movie_making") t)
-        (setf (j:json-getf content "render_params") (cons :obs render-params)))
+        (setf (jupyter:json-getf content "movie_making") t)
+        (setf (jupyter:json-getf content "render_params") (cons :obs render-params)))
       (jupyter-widgets:send-custom widget content (nreverse buffers))))
   (values))
 
@@ -833,29 +851,29 @@
 
 ; p:_ngl_handle_msg
 (defmethod jupyter-widgets:on-custom-message ((widget nglwidget) content buffers)
-  (jupyter:inform :info widget "Handling custom message ~A" (j:json-getf content "type"))
+  (jupyter:inform :info widget "Handling custom message ~A" (jupyter:json-getf content "type"))
   (setf (ngl-msg widget) content)
-  (alexandria:switch ((j:json-getf content "type") :test #'string=)
+  (alexandria:switch ((jupyter:json-getf content "type") :test #'string=)
     ("updateIDs"
       (setf (%ngl-view-id widget)
-            (j:json-getf content "data")))
+            (jupyter:json-getf content "data")))
     ("request_loaded"
       (unless (loaded widget)
         (setf (loaded widget) nil))
-      (setf (loaded widget) (j:json-getf content "data")))
+      (setf (loaded widget) (jupyter:json-getf content "data")))
     ("request_repr_dict"
-       (setf (%ngl-repr-dict widget) (j:json-getf content "data")))
+       (setf (%ngl-repr-dict widget) (jupyter:json-getf content "data")))
     ("stage_parameters"
-      (let ((stage-parameters (jupyter:json-to-plist (j:json-getf content "data") :symbol-case :camel)))
+      (let ((stage-parameters (jupyter:json-to-plist (jupyter:json-getf content "data") :symbol-case :camel)))
         (setf (%ngl-full-stage-parameters widget) stage-parameters)
         (unless (%ngl-original-stage-parameters widget)
           (setf (%ngl-original-stage-parameters widget) stage-parameters))))
     ("async_message"
-      (when (string= (j:json-getf content "data") "ok")
+      (when (string= (jupyter:json-getf content "data") "ok")
         (jupyter:inform :info widget "Setting event")
         (pythread:event-set (event widget))))
     (otherwise
-      (jupyter:inform :warn "No handler for ~A" (j:json-getf content "type")))))
+      (jupyter:inform :warn "No handler for ~A" (jupyter:json-getf content "type")))))
 
 ; p:_request_repr_parameters
 (defmethod %request-repr-parameters ((widget nglwidget) &key (component 0) (repr-index 0))
@@ -918,13 +936,13 @@
           (if (and (eq binary t) (not use-filename))
               (error "Handle blob decoding of base64 files"))
           (setf blob-type (if passing-buffer "blob" "path"))
-          (setf args (list (j:json-new-obj
+          (setf args (list (jupyter:json-new-obj
                        ("type" blob-type)
                                  ("data" blob)
                                  ("binary" (or binary :false))))))
         (setf blob-type "url"
               url obj
-              args (list (j:json-new-obj
+              args (list (jupyter:json-new-obj
               ("type" blob-type)
                                ("data" url)
                                ("binary" :false)))))
@@ -1002,7 +1020,7 @@
   (check-type args list)
   (check-type kwargs list)              ; alist
   (jupyter:inform :info widget "entered %remote-call ~a" method-name)
-  (let ((msg (j:json-new-obj
+  (let ((msg (jupyter:json-new-obj
                ("target" target)
                ("type" "call_method")
                ("methodName" method-name)
@@ -1010,12 +1028,12 @@
         (component-index (assoc "component_index" kwargs :test #'string=))
         (repr-index (assoc "repr_index" kwargs :test #'string=)))
     (when component-index
-      (setf (j:json-getf msg "component_index") (cdr component-index))
+      (setf (jupyter:json-getf msg "component_index") (cdr component-index))
       (setf kwargs (remove component-index kwargs)))
     (when repr-index
-      (setf (j:json-getf msg "repr_index") (cdr repr-index))
+      (setf (jupyter:json-getf msg "repr_index") (cdr repr-index))
       (setf kwargs (remove repr-index kwargs)))
-    (setf (j:json-getf msg "kwargs") (cons :obj kwargs))
+    (setf (jupyter:json-getf msg "kwargs") (cons :obj kwargs))
     (let ((callback-maker (lambda (description)
                             (jupyter:inform :info nil "About to make-remote-call-callback ~a" description)
                             (pythread:make-remote-call-callback
@@ -1075,13 +1093,13 @@
 ; p:_js_console
 (defmethod %js-console ((widget nglwidget))
   (jupyter-widgets:send-custom widget
-                               (j:json-new-obj ("type" "get")
+                               (jupyter:json-new-obj ("type" "get")
                                                ("data" "any"))))
 
 ; p:_get_full_params
 (defmethod %get-full-params ((widget nglwidget))
   (jupyter-widgets:send-custom widget
-                               (j:json-new-obj ("type" "get")
+                               (jupyter:json-new-obj ("type" "get")
                                                ("data" "parameters"))))
 
 
