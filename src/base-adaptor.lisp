@@ -10,10 +10,12 @@
 (defclass component ()
   ((id
      :accessor id
+     :initarg :id
      :initform (jupyter:make-uuid)
      :documentation "The unique id of the component.")
    (name
      :accessor name
+     :initarg :name
      :initform ""
      :documentation "The name of the component."))
   (:documentation "Base component of structures and trajectories."))

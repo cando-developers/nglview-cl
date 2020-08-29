@@ -23,6 +23,8 @@
     #:append-coordinates
     #:center
     #:clear-representations
+    #:components
+    #:component-ids
     #:coordinates-dict
     #:ext
     #:file-structure
@@ -50,6 +52,7 @@
     #:remove-components
     #:send-binary
     #:set-coordinates
+    #:set-visibility
     #:shape
     #:show-aggregate
     #:show-components

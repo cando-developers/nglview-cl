@@ -1076,7 +1076,7 @@
       (%remote-call instance
                     "setVisibility"
                     :target "compList"
-                    :args (list visibility)
+                    :args (list (if visibility :true :false))
                     :kwargs (list (cons "component_index" index))))))
 
 ; p:hide
@@ -1171,3 +1171,5 @@
                 :kwargs (list (cons "cameraType "(camera-str widget))))
   (values))
 
+(defun component-ids (widget)
+  (mapcar #'id (components widget)))
