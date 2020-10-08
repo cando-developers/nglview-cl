@@ -72,21 +72,3 @@
     #:%view-width
     #:%wait-until-finished))
 
-(defpackage #:pythread
-  (:use #:cl)
-  (:shadow #:set)
-  (:export
-    #:remote-call-callback
-    #:make-remote-call-callback
-    #:callback
-    #:method-name
-    #:description
-    #:fire-callback
-    #:remote-call-add
-    #:remote-call-thread-run
-    #:event
-    #:event-set
-    #:clear
-    #:is-set
-    #:*remote-call-thread*
-    #:*remote-call-thread-queue*))

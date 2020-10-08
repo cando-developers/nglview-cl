@@ -1,9 +1,7 @@
 (in-package :nglview)
 
-(defparameter *excluded-callback-after-firing*
-  (list "setUnSyncCamera" "setSelector"
-        "setDelay" "autoView" "_downloadImage" "_exportImage"
-        "set_representation_from_backend"))
+(defparameter +asynchronous-remote-call-methods+
+  (list "loadFile" "_exportImage"))
 
 ;; Save up to 8 previous picks
 (defparameter *pick-history-depth* 16)
@@ -215,48 +213,6 @@
    (remote-call-thread
      :accessor remote-call-thread
      :initform nil)
-   (%event ; p:_event
-     :accessor event
-     :initform (make-instance 'pythread:event))
-   (%ngl-displayed-callbacks-before-loaded-reversed
-     :accessor ngl-displayed-callbacks-before-loaded-reversed
-     :initform nil)
-   (%ngl-displayed-callbacks-after-loaded-reversed
-     :accessor ngl-displayed-callbacks-after-loaded-reversed
-     :initform nil)
-   ;;; FIXME:  Would this be a Clasp mp:PROCESS??
-   ;;;   (%handle-msg-thread :initarg :handle-msg-thread :accessor handle-msg-thread :initform :threading.thread)
-   #|
-   self._handle_msg_thread = threading.Thread(target=self.on_msg,
-   args=(self._ngl_handle_msg,))
-   # # register to get data from JS side
-   self._handle_msg_thread.daemon = True
-   self._handle_msg_thread.start()
-   |#
-   ;; Only one remote-call-thread in pythread:*remote-call-thread*
-   #+(or)(%remote-call-thread
-           :accessor remote-call-thread
-           :allocation :class
-           :initform pythread:*remote-call-thread*)
-   ;; Only one remote-call-thread-queue in pythread:*remote-call-thread-queue*
-   #+(or)(%remote-call-thread-queue
-           :accessor remote-call-thread-queue
-           :allocation :class
-           :initform pythread:*remote-call-thread-queue*)
-   (%handle-msg-thread ; p:_handle_msg_thread
-     :accessor handle-msg-thread
-     :initform nil)
-   ;; keep track but making copy
-   ;;; FIXME - fix this nonsense below
-   #||
-        self._set_unsync_camera()
-        self.selector = str(uuid.uuid4()).replace('-', '')
-        self._remote_call('setSelector', target='Widget', args=[self.selector,])
-        self.selector = '.' + self.selector # for PlaceProxy
-        self._place_proxy = PlaceProxy(child=None, selector=self.selector)
-        self.player = trajectory-player(self)
-        self._already_constructed = True
-   ||#
    (%init-representations
      :accessor init-representations
      :initform nil))
@@ -278,15 +234,10 @@
               (clext.queue:dequeue (remote-call-queue instance))))
         (nil)
         (jupyter-widgets:send-custom instance msg)
-        (when (position (jupyter:json-getf msg "methodName") '("loadFile") :test #'equal)
+        (when (position (jupyter:json-getf msg "methodName") +asynchronous-remote-call-methods+ :test #'equal)
           (bordeaux-threads:condition-wait (remote-call-ok-condition instance)
                                            (remote-call-ok-lock instance))))))
 
-
-;(defmethod initialize-instance :before ((instance nglwidget) &rest initargs &key &allow-other-keys)
-;  (declare (ignore initargs))
-;  (unless pythread:*remote-call-thread*
-;    (pythread::kernel-start-callback)))
 
 (defmethod initialize-instance :after ((instance nglwidget) &rest initargs &key &allow-other-keys)
   (setf (remote-call-queue instance) (clext.queue:make-queue (jupyter:comm-id instance))
@@ -379,30 +330,7 @@
 
 ; p:_set_serialization
 (defun %set-serialization (self &optional frame-range)
-  (setf (%ngl-serialize self) t)
-  (setf (ngl-msg-archive self)
-         (mapcar (lambda (callback)
-                   (ngl-msg callback))
-                 (ngl-displayed-callbacks-after-loaded-reversed self)))
-  (let ((resource (ngl-coordinate-resource self)))
-    (when frame-range
-      #|| ;; Finish set-serialization
-      (loop for t-index from 0
-      for traj in (%trajlist self)
-      do (setf (elt resource t-index) (list))
-      (loop for
-      for f_index in range(*frame_range):
-      if f_index < traj.n_frames:
-      resource[t_index].append(encode_base64(traj.get_coordinates(f_index)))
-      else:
-      resource[t_index].append(encode_base64(
-                            np.empty((0), dtype='f4')))
-            resource['n_frames'] = len(resource[0])
-
-        self._ngl_coordinate_resource = resource
-        self._ngl_full_stage_parameters_embed = self._ngl_full_stage_parameters
-      ||#
-      )))
+  (setf (%ngl-serialize self) t))
 
 ; p:_unset_serialization
 (defun %unset-serialization (instance)
@@ -474,58 +402,6 @@
   (setf (max-frame instance)
         (apply #'max 0 (mapcar #'n-frames (components instance))))
   (values))
-
-; p:_wait_until_finished
-(defmethod %wait-until-finished ((widget nglwidget) &optional (timeout 1.0))
-  (jupyter:inform :info nil "entered %wait-until-finished")
-  #+(or)(pythread:clear (event widget))
-  (loop
-    (sleep timeout)
-    (when t;(pythread:is-set (event widget))
-      (return-from %wait-until-finished))
-    (jupyter:inform :info nil "woke %wait-until-finished after timeout ~a continuing to wait" timeout)))
-
-; p:_run_on_another_thread
-(defmethod %run-on-another-thread ((self nglwidget) func &rest args)
-  (error "Finish %run-on-another-thread")
-#|
-      def _run_on_another_thread(self, func, *args):
-        # use `event` to singal
-        # func(*args)
-        thread = threading.Thread(
-            target=func,
-            args=args, )
-        thread.daemon = True
-        thread.start()
-        return thread
-|#)
-
-; p:on_loaded
-#+(or)(defmethod (setf loaded) :after (new (widget nglwidget))
-  ;;;(setf (loaded widget) t)
-  (jupyter:inform :info nil "entered on-loaded - firing before-loaded callbacks new -> ~a" new)
-  (when new
-    (when (slot-boundp widget '%ngl-displayed-callbacks-before-loaded-reversed)
-      (%fire-callbacks widget (ngl-displayed-callbacks-before-loaded-reversed widget)))))
-
-; p:_fire_callbacks
-(defmethod %fire-callbacks ((widget nglwidget) callbacks)
-  (jupyter:inform :info nil "%fire-callbacks entered in process ~s~%  callbacks: ~s" (bordeaux-threads:current-thread)
-                   (loop for x in callbacks
-                         collect (list (pythread:method-name x) (pythread:description x))))
-  (flet ((_call ()
-           (jupyter:inform :info nil "%fire-callbacks _call entered in process ~s" (bordeaux-threads:current-thread))
-           (loop for callback in callbacks
-                 do (progn
-                      (jupyter:inform :info nil "      %fire-callback -> ~s in process ~s" (pythread:method-name callback) (bordeaux-threads:current-thread))
-                      (pythread:fire-callback callback widget)
-                      (when (string= (pythread:method-name callback) "loadFile")
-                        (jupyter:inform :info nil "    Waiting until finished")
-                        (%wait-until-finished widget))))))
-    (bordeaux-threads:make-thread (lambda () (_call))
-                             :initial-bindings nil ; FIXME: cl-jupyter:*default-special-bindings*
-                             :name "fire-callbacks-thread"))
-  (jupyter:inform :info nil "Done %fire-callbacks"))
 
 ; p:display
 (defmethod jupyter-widgets:%display ((widget nglwidget) &rest args &key gui use-box &allow-other-keys)
@@ -897,7 +773,7 @@
           (setf (%ngl-original-stage-parameters widget) stage-parameters))))
     ("async_message"
       (when (string= (jupyter:json-getf content "data") "ok")
-        (jupyter:inform :info widget "Setting event")
+        (jupyter:inform :info widget "Received async ok...informing remote message thread.")
         (bordeaux-threads:with-lock-held ((remote-call-ok-lock widget))
           (bordeaux-threads:condition-notify (remote-call-ok-condition widget)))))
     (otherwise

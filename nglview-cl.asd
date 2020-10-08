@@ -33,7 +33,6 @@
                              (:file "queue")
                              (:file "base")
                              (:file "theme")
-                             (:file "pythread")
                              (:file "base-adaptor")
                              (:file "adaptor")
                              (:file "widget")
