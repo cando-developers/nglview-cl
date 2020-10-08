@@ -207,8 +207,11 @@
      :accessor image-array
      :initform #())
    (remote-call-queue
-     :accessor remote-call-queue
-     :initform (clext.queue:make-queue (jupyter:make-uuid)))
+     :accessor remote-call-queue)
+   (remote-call-ok-lock
+     :accessor remote-call-ok-lock)
+   (remote-call-ok-condition
+     :accessor remote-call-ok-condition)
    (remote-call-thread
      :accessor remote-call-thread
      :initform nil)
@@ -268,12 +271,27 @@
 
 (jupyter-widgets:register-widget nglwidget)
 
-(defmethod initialize-instance :before ((instance nglwidget) &rest initargs &key &allow-other-keys)
-  (declare (ignore initargs))
-  (unless pythread:*remote-call-thread*
-    (pythread::kernel-start-callback)))
+
+(defun run-remote-call-thread (instance)
+  (bordeaux-threads:with-lock-held ((remote-call-ok-lock instance))
+    (do ((msg (clext.queue:dequeue (remote-call-queue instance))
+              (clext.queue:dequeue (remote-call-queue instance))))
+        (nil)
+        (jupyter-widgets:send-custom instance msg)
+        (when (position (jupyter:json-getf msg "methodName") '("loadFile") :test #'equal)
+          (bordeaux-threads:condition-wait (remote-call-ok-condition instance)
+                                           (remote-call-ok-lock instance))))))
+
+
+;(defmethod initialize-instance :before ((instance nglwidget) &rest initargs &key &allow-other-keys)
+;  (declare (ignore initargs))
+;  (unless pythread:*remote-call-thread*
+;    (pythread::kernel-start-callback)))
 
 (defmethod initialize-instance :after ((instance nglwidget) &rest initargs &key &allow-other-keys)
+  (setf (remote-call-queue instance) (clext.queue:make-queue (jupyter:comm-id instance))
+        (remote-call-ok-lock instance) (bordeaux-threads:make-lock (jupyter:comm-id instance))
+        (remote-call-ok-condition instance) (bordeaux-threads:make-condition-variable :name (jupyter:comm-id instance)))
   (let ((kwargs (copy-list initargs))
         (structure (getf initargs :structure)))
     (cond
@@ -460,10 +478,10 @@
 ; p:_wait_until_finished
 (defmethod %wait-until-finished ((widget nglwidget) &optional (timeout 1.0))
   (jupyter:inform :info nil "entered %wait-until-finished")
-  (pythread:clear (event widget))
+  #+(or)(pythread:clear (event widget))
   (loop
     (sleep timeout)
-    (when (pythread:is-set (event widget))
+    (when t;(pythread:is-set (event widget))
       (return-from %wait-until-finished))
     (jupyter:inform :info nil "woke %wait-until-finished after timeout ~a continuing to wait" timeout)))
 
@@ -483,7 +501,7 @@
 |#)
 
 ; p:on_loaded
-(defmethod (setf loaded) :after (new (widget nglwidget))
+#+(or)(defmethod (setf loaded) :after (new (widget nglwidget))
   ;;;(setf (loaded widget) t)
   (jupyter:inform :info nil "entered on-loaded - firing before-loaded callbacks new -> ~a" new)
   (when new
@@ -864,9 +882,12 @@
       (setf (%ngl-view-id widget)
             (jupyter:json-getf content "data")))
     ("request_loaded"
-      (unless (loaded widget)
-        (setf (loaded widget) nil))
-      (setf (loaded widget) (jupyter:json-getf content "data")))
+      (when (and (setf (loaded widget) (jupyter:json-getf content "data"))
+                 (null (remote-call-thread widget)))
+        (setf (remote-call-thread widget)
+              (bordeaux-threads:make-thread (lambda ()
+                                              (run-remote-call-thread widget))
+                                            :name (jupyter:comm-id widget)))))
     ("request_repr_dict"
        (setf (%ngl-repr-dict widget) (jupyter:json-getf content "data")))
     ("stage_parameters"
@@ -877,7 +898,8 @@
     ("async_message"
       (when (string= (jupyter:json-getf content "data") "ok")
         (jupyter:inform :info widget "Setting event")
-        (pythread:event-set (event widget))))
+        (bordeaux-threads:with-lock-held ((remote-call-ok-lock widget))
+          (bordeaux-threads:condition-notify (remote-call-ok-condition widget)))))
     (otherwise
       (jupyter:inform :warn "No handler for ~A" (jupyter:json-getf content "type")))))
 
@@ -1040,34 +1062,7 @@
       (setf (jupyter:json-getf msg "repr_index") (cdr repr-index))
       (setf kwargs (remove repr-index kwargs)))
     (setf (jupyter:json-getf msg "kwargs") (cons :obj kwargs))
-    (let ((callback-maker (lambda (description)
-                            (jupyter:inform :info nil "About to make-remote-call-callback ~a" description)
-                            (pythread:make-remote-call-callback
-                             :widget widget
-                             :callback (lambda (widget)
-                                         (jupyter:inform :info nil "Start %remote-call method-name -> ~a" method-name)
-                                         (jupyter:inform :info nil "      %remote-call widget -> ~s" widget)
-                                         (jupyter:inform :info nil "      %remote-call msg -> ~s" msg)
-                                         (prog1
-                                             (jupyter-widgets:send-custom widget msg)
-                                           (jupyter:inform :info nil "    Done %remote-call method-name -> ~s" method-name)))
-                             :method-name method-name
-                             :description description
-                             :ngl-msg msg))))
-      (if (and (slot-boundp widget 'loaded) (loaded widget))
-          (let ((callback (funcall callback-maker "remote-call-add")))
-            (jupyter:inform :info nil "enqueing remote-call ~a" callback)
-            (pythread:remote-call-add callback))
-          (let ((callback (funcall callback-maker "before-loaded")))
-            (if (slot-boundp widget '%ngl-displayed-callbacks-before-loaded-reversed)
-                (push callback (ngl-displayed-callbacks-before-loaded-reversed widget))
-                (setf (ngl-displayed-callbacks-before-loaded-reversed widget) (list callback)))))
-      (when (not (member method-name *excluded-callback-after-firing* :test #'string=))
-        (let ((callback (funcall callback-maker "after-loaded")))
-          (if (slot-boundp widget '%ngl-displayed-callbacks-after-loaded-reversed)
-              (push callback (ngl-displayed-callbacks-after-loaded-reversed widget))
-              (setf (ngl-displayed-callbacks-after-loaded-reversed widget) (list callback)))))))
-  (jupyter:inform :info nil "leaving %remote-call ~a" method-name)
+    (clext.queue:enqueue (remote-call-queue widget) msg))
   t)
 
 (defun set-visibility (instance visibility &rest args)
