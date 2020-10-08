@@ -1,7 +1,7 @@
 (in-package :nglview)
 
 (defparameter *excluded-callback-after-firing*
-  (list "setUnSyncCamera" "setSelector" "setUnSyncFrame"
+  (list "setUnSyncCamera" "setSelector"
         "setDelay" "autoView" "_downloadImage" "_exportImage"
         "set_representation_from_backend"))
 
@@ -206,6 +206,12 @@
    (%image-array ; p:_image_array
      :accessor image-array
      :initform #())
+   (remote-call-queue
+     :accessor remote-call-queue
+     :initform (clext.queue:make-queue (jupyter:make-uuid)))
+   (remote-call-thread
+     :accessor remote-call-thread
+     :initform nil)
    (%event ; p:_event
      :accessor event
      :initform (make-instance 'pythread:event))

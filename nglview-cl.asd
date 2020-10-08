@@ -1,7 +1,7 @@
 
 (asdf:defsystem #:nglview-cl
   :description "The nglview for common-lisp-jupyter"
-  :version "0.1"
+  :version "2.7.7"
   :author ("Kevin Esslinger"
            "Alex Rose"
            "Christian Schafmeister"
