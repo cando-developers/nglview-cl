@@ -789,9 +789,9 @@
 
 ; p:add_structure
 (defun add-structure (self structure &rest kwargs)
-  (jupyter:inform :info nil "In add-structure  (loaded self) -> ~a" (loaded self))
   (if (not (typep structure 'structure))
       (error "~s is not an instance of structure" structure))
+  (setf (shown structure) t)
   (apply '%load-data self structure kwargs)
   (setf (components self)
         (append (components self) (list structure)))
@@ -948,8 +948,7 @@
         (index 0 (1+ index)))
        ((null components-tail))
     (when (component-member-p component index args)
-      (when (typep component 'trajectory)
-        (setf (shown component) visibility))
+      (setf (shown component) visibility)
       (%remote-call instance
                     "setVisibility"
                     :target "compList"

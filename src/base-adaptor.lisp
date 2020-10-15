@@ -17,7 +17,12 @@
      :accessor name
      :initarg :name
      :initform ""
-     :documentation "The name of the component."))
+     :documentation "The name of the component.")
+   (shown
+     :accessor shown
+     :initform t
+     :type bool
+     :documentation "Boolean indicated whether the component is currently visible."))
   (:documentation "Base component of structures and trajectories."))
 
 
@@ -42,11 +47,7 @@
 
 ; p:Trajectory
 (defclass trajectory (component)
-  ((shown
-     :accessor shown
-     :initform t
-     :type bool
-     :documentation "Boolean indicated whether the trajectory is currently visible."))
+  ()
   (:documentation "Base class for trajectories."))
 
 ; p:get_coordinates
