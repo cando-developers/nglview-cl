@@ -509,22 +509,27 @@
   (%remote-call widget-instance "request_repr_dict" :target "Widget"))
 
 
+(defun map-components (instance function components)
+  (loop for component in (components instance)
+        for index from 0
+        when (component-member-p component index components)
+        do (funcall function component index)))
+
+
 ; p:set_representations
-(defmethod set-representations ((widget nglwidget) representations &key (component 0))
-  (clear-representations widget :component component)
-  (let ((kwargs ""))
-    (loop for params in representations
-       do
-         (if t ; FIXME: (typep params 'cljupyter-widgets:dict)
-             (progn
-               (setf kwargs (aref params "params"))
-               (warn "What to do about update kwargs")
-               (%remote-call widget
-                           "addRepresentations"
-                           :target "compList"
-                           :args (list (a params "type"))
-                           :kwargs kwargs))
-             (error "Params must be a dict"))))
+(defun set-representations (instance representations &rest components)
+  (map-components instance
+                  (lambda (component index)
+                    (clear-representations instance :component index)
+                    (dolist (representation representations)
+                      (let ((type-pair (assoc "type" representation :test #'string=)))
+                        (%remote-call instance
+                                      "addRepresentation"
+                                      :target "compList"
+                                      :args (list (cdr type-pair))
+                                      :kwargs (acons "component_index" index
+                                                     (remove type-pair representation))))))
+                  components)
   (values))
 
 ; p:_remove_representation
@@ -860,7 +865,8 @@
 
 (defun component-member-p (component index seq)
   (some (lambda (item)
-          (or (and (typep item 'integer)
+          (or (null seq)
+              (and (typep item 'integer)
                    (= index item))
               (and (typep item 'string)
                    (string= (id component) item))

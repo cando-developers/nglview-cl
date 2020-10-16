@@ -52,6 +52,7 @@
     #:remove-components
     #:send-binary
     #:set-coordinates
+    #:set-representations
     #:set-visibility
     #:shape
     #:show-aggregate
