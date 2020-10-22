@@ -533,14 +533,14 @@
   (values))
 
 ; p:_remove_representation
-(defun %remove-representation (widget &key (component 0) (repr-index 0))
+(defun remove-representation (widget &key (component 0) (repr-index 0))
   (%remote-call widget
                 "removeRepresentation"
                 :target "Widget"
                 :args (list component repr-index)))
 
 ; p:_remove_representations_by_name
-(defmethod %remove-representations-by-name ((widget nglwidget) repr-name &key (component 0))
+(defmethod remove-representations-by-name ((widget nglwidget) repr-name &key (component 0))
   (%remote-call widget
                 "removeRepresentationsByName"
                 :target "Widget"
@@ -584,7 +584,6 @@
 
 ; p:set_coordinates
 (defmethod set-coordinates ((widget nglwidget) arr-dict &key movie-making render-params)
-  (jupyter:inform :info nil  "In nglview set-coordinates")
   (let (buffers
         coordinates-meta)
     (setf (coordinates-dict widget) arr-dict)
@@ -644,63 +643,15 @@
                 :args (list name shapes)))
 
 ; p:add_representation
-(defun add-representation (self repr-type &rest kwargs &key (use-worker nil use-worker-p) (selection "all") &allow-other-keys)
-  "Add structure representation (cartoon, licorice, ...) for given atom selection.
-
-        Parameters
-        ----------
-        repr_type : str
-            type of representation. Please see {ngl_url} for further info.
-        selection : str or 1D array (atom indices) or any iterator that returns integer, default 'all'
-            atom selection
-        **kwargs: additional arguments for representation
-
-        Example
-        -------
-        >>> import nglview as nv
-        >>>
-        >>> t = (pt.datafiles.load_dpdp()[:].supej = pt.load(membrane_pdb)
-                trajrpose('@CA'))
-        >>> w = nv.show_pytraj(t)
-        >>> w.add_representation('cartoon', selection='protein', color='blue')
-        >>> w.add_representation('licorice', selection=[3, 8, 9, 11], color='red')
-        >>> w
-
-        Notes
-        -----
-        User can also use shortcut
-
-        >>> w.add_cartoon(selection) # w.add_representation('cartoon', selection)
-        "
-  (declare (ignore use-worker))
-  (when (string= repr-type "surface")
-    (unless use-worker-p
-      (setf (getf kwargs :use-worker) nil)))
-
-  ;; avoid space sensitivity
-  (setf repr-type (string-trim " " repr-type))
-  ;; overwrite selection
-  (setf selection (seq-to-string (string-trim " " selection)))
-  (let* ((kwargs2 (dict-from-plist kwargs))
-         (comp-assoc (assoc :component kwargs2))
-         (component (prog1
-                        (getf kwargs2 :component 0)
-                      (remf kwargs2 :component))))
-    #|for k, v in kwargs2.items():
-    try:
-    kwargs2[k] = v.strip()
-    except AttributeError:
-    # e.g.: opacity=0.4
-    kwargs2[k] = v
-    |#
-    (let* ((params (dict-from-plist kwargs :remove '(:selection))))
-      (push (cons "sele" selection) params)
-      (push (cons "component_index" component) params)
-;;;      (format t "kwargs -> ~s~%" params)
-      (%remote-call self "addRepresentation"
-                    :target "compList"
-                    :args (list repr-type)
-                    :kwargs params))))
+(defun add-representation (self repr-type &rest kwargs &key &allow-other-keys)
+  (unless (get-properties kwargs '(:component))
+    (setf (getf kwargs :component) 0))
+  (unless (get-properties kwargs '(:selection))
+    (setf (getf kwargs :selection) "all"))
+  (%remote-call self "addRepresentation"
+                :target "compList"
+                :args (list repr-type)
+                :kwargs (alist-from-plist kwargs :translate '(:selection "sele" :component "component_index"))))
 
 
 ; p:center

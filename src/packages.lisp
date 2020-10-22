@@ -50,6 +50,8 @@
     #:remote-call-thread-queue
     #:remove-all-components
     #:remove-components
+    #:remove-representation
+    #:remove-representations-by-name
     #:send-binary
     #:set-coordinates
     #:set-representations

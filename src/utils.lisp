@@ -71,6 +71,12 @@ def get_name(obj, kwargs):
      unless (member key remove)
      collect (cons (camelize key) value)))
 
+(defun alist-from-plist (plist &key remove translate)
+  "Convert a plist (keyword value pairs from &key arguments) to an alist for JSON"
+  (loop for (key value) on plist by #'cddr
+     unless (member key remove)
+     collect (cons (getf translate key (camelize key)) value)))
+
 (defun seq-to-string (seq)
   "e.g. convert [1, 3, 5] to \"@1,3,5\""
   (cond
