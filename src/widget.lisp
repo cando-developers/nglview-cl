@@ -975,11 +975,9 @@
 
 (defmethod jupyter:on-comm-close :after ((widget nglwidget) data metadata buffers)
   (declare (ignore data metadata buffers))
-  ;; (bordeaux-threads:destroy-thread (remote-call-thread widget))
-  (when (handle-msg-thread widget)
-    (bordeaux-threads:destroy-thread (handle-msg-thread widget)))
-  ;;; FIXME: Kill handle-msg-thread
-  )
+  (when (remote-call-thread widget)
+    (bordeaux-threads:destroy-thread (remote-call-thread widget))
+    (setf (remote-call-thread widget) nil)))
 
 
 (defmethod %update-ngl-repr-dict ((self nglwidget))
